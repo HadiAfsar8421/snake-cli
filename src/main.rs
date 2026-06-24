@@ -1,7 +1,10 @@
 use crossterm::{
-    QueueableCommand, cursor, event, execute, style, terminal::{self, disable_raw_mode, enable_raw_mode},
+    QueueableCommand, cursor, event::{self, Event, KeyCode}, execute, queue, style, terminal::{self, ClearType, disable_raw_mode, enable_raw_mode},
 };
-use std::io::{self, Write, stdout};
+use std::{io::{self, Write, stdout}, time::{Duration, Instant}};
+use rand;
+
+use crate::CollisionType::{Death, None};
 
 fn generate_borders(height: u16, width: u16) -> Vec<Position> {
     let mut borders = Vec::new();
@@ -19,18 +22,69 @@ fn generate_borders(height: u16, width: u16) -> Vec<Position> {
     borders
 }
 
+fn generate_food_position(width: u16, height: u16) -> Position {
+    (rand::random_range(0..width), rand::random_range(0..height))
+}
+
 fn main() -> Result<(), io::Error> {
     let mut stdout = stdout();
 
     execute!(
         stdout,
         terminal::EnterAlternateScreen,
-        terminal::SetSize(66, 66),
-        terminal::Clear(terminal::ClearType::All),
+        terminal::Clear(ClearType::All),
     )?;
     enable_raw_mode()?;
 
-    let mut snake = Snake::new((32, 32), Direction::RIGHT);
+    let width: u16 = 64;
+    let height: u16 = 64;
+
+    let mut game = GameState::new(width, height);
+    let mut high_score = game.score;
+    let borders = generate_borders(width + 2, height + 2);
+
+    let mut time_since_last_tick = Instant::now();
+    let tick_interval = Duration::from_millis(200);
+
+    loop {
+        
+        queue!(stdout, terminal::Clear(ClearType::All))?;
+
+        let (cur_width, cur_height) = terminal::size()?;
+        if cur_width < (width + 2) || (cur_height < height) {
+            execute!(
+                stdout, 
+                cursor::MoveTo(0, 0),
+                style::Print("Terminal too small, please increase terminal size to at least 66x66\n")
+            )?;
+            continue; 
+        }
+        let x_off = (cur_width - (width + 2)) / 2;
+        let y_off = (cur_height - (height + 2)) / 2;
+
+        for (x, y) in borders.clone() {
+            queue!(
+                stdout, 
+                cursor::MoveTo(x + x_off, y + y_off),
+                style::Print("#"),
+            )?;
+        }
+
+        if event::poll(Duration::from_millis(0))?  {
+            if let Event::Key(key) = event::read()? && key.is_press() {
+                match key.code {
+                    KeyCode::Char('q') | KeyCode::Char('Q') => break,
+                    KeyCode::Char('r') | KeyCode::Char('R') => game.reset(width, height),
+                    KeyCode::Up | KeyCode::Char('w') | KeyCode::Char('W') => game.change_direction(Direction::UP),
+                    KeyCode::Down | KeyCode::Char('s') | KeyCode::Char('S') => game.change_direction(Direction::DOWN),
+                    KeyCode::Left | KeyCode::Char('a') | KeyCode::Char('A') => game.change_direction(Direction::LEFT),
+                    KeyCode::Right | KeyCode::Char('d') | KeyCode::Char('D') => game.change_direction(Direction::RIGHT),
+                    _ => {}
+                }
+            }
+        }
+
+    }
 
     disable_raw_mode()?;
     execute!(
@@ -50,6 +104,56 @@ enum Direction {
 }
 
 type Position = (u16, u16);
+
+struct GameState {
+    snake: Snake,
+    input_dir: Direction,
+    food_pos: Position,
+    score: u64,
+}
+
+impl GameState {
+    fn new(width: u16, height: u16) -> Self {
+        Self { snake: Snake::new((width / 2, height / 2), Direction::RIGHT), input_dir: Direction::RIGHT, food_pos: generate_food_position(width, height), score: 1 }
+    }
+
+    fn reset(&mut self, width: u16, height: u16) {
+        self.snake = Snake::new((width / 2, height / 2), Direction::RIGHT);
+        self.input_dir = Direction::RIGHT;
+        self.food_pos = generate_food_position(width, height);
+        self.score = 1
+    } 
+
+    fn handle_collision(&mut self, border: Vec<Position>) -> CollisionType {
+        if self.snake.is_colliding(&border, true) {
+            return Death(self.score)
+        } else if self.snake.is_colliding(&[self.food_pos], false) {
+            self.score += 1;
+        }
+        return None
+    }
+
+    fn advance(&mut self) {
+        self.snake.advance();
+    }
+
+    fn change_direction(&mut self, direction: Direction) {
+        self.snake.change_direction(direction);
+    }
+
+    fn snake_body(&self) -> &[Position] {
+        &self.snake.body[1..]
+    }
+
+    fn snake_head(&self) -> &Position {
+        &self.snake.body[0]
+    }
+}
+
+enum CollisionType {
+    Death(u64),
+    None,
+}
 
 #[derive(Debug)]
 struct Snake {
