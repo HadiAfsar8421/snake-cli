@@ -10,7 +10,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-fn generate_borders(width: u16, height: u16) -> Vec<Position> {
+fn generate_borders(width: i32, height: i32) -> Vec<Position> {
     let mut borders = Vec::new();
 
     for x in 0..width {
@@ -26,7 +26,7 @@ fn generate_borders(width: u16, height: u16) -> Vec<Position> {
     borders
 }
 
-fn generate_food_position(width: u16, height: u16, body: &[Position]) -> Option<Position> {
+fn generate_food_position(width: i32, height: i32, body: &[Position]) -> Option<Position> {
     let mut slots = Vec::new();
     for x in 0..width {
         for y in 0..height {
@@ -55,8 +55,8 @@ fn main() -> io::Result<()> {
     )?;
     enable_raw_mode()?;
 
-    let width: u16 = 64;
-    let height: u16 = 32;
+    let width: i32 = 64;
+    let height: i32 = 32;
 
     let mut game = GameState::new(width, height);
     let borders = generate_borders(width + 2, height + 3);
@@ -67,10 +67,12 @@ fn main() -> io::Result<()> {
     let mut render = true;
     let mut game_over = false;
     let mut game_over_rendered = false;
-    let mut current_size = terminal::size()?;
+    let (w, h) = terminal::size()?;
+    let mut current_size: (i32, i32) = (w as i32, h as i32);
 
     loop {
-        let new_size = terminal::size()?;
+        let (w, h) = terminal::size()?;
+        let new_size = (w as i32, h as i32);
 
         if new_size != current_size {
             render = true;
@@ -119,7 +121,7 @@ fn main() -> io::Result<()> {
         if last_tick.elapsed() >= tick_interval && !game_over {
             game.change_direction();
             game.advance();
-            game_over = game.handle_collision(&borders);
+            game_over = game.handle_collision();
 
             render = true;
             last_tick = Instant::now()
@@ -138,14 +140,17 @@ fn main() -> io::Result<()> {
             queue!(
                 stdout,
                 terminal::Clear(ClearType::All),
-                cursor::MoveTo(x_off, y_off),
+                cursor::MoveTo(x_off.try_into().unwrap(), y_off.try_into().unwrap()),
                 style::Print(text)
             )?;
 
             for &(x, y) in &borders {
                 queue!(
                     stdout,
-                    cursor::MoveTo(x + x_off, y + y_off + 1),
+                    cursor::MoveTo(
+                        (x + x_off).try_into().unwrap(),
+                        (y + y_off + 1).try_into().unwrap()
+                    ),
                     style::Print("#")
                 )?;
             }
@@ -153,21 +158,30 @@ fn main() -> io::Result<()> {
             let (x, y) = game.food_pos;
             queue!(
                 stdout,
-                cursor::MoveTo(x + x_off + 1, y + y_off + 2),
+                cursor::MoveTo(
+                    (x + x_off + 1).try_into().unwrap(),
+                    (y + y_off + 2).try_into().unwrap()
+                ),
                 style::Print("$")
             )?;
 
             let &(x, y) = game.snake_head();
             queue!(
                 stdout,
-                cursor::MoveTo(x + x_off + 1, y + y_off + 2),
+                cursor::MoveTo(
+                    (x + x_off + 1).try_into().unwrap(),
+                    (y + y_off + 2).try_into().unwrap()
+                ),
                 style::Print("@")
             )?;
 
             for &(x, y) in game.snake_body() {
                 queue!(
                     stdout,
-                    cursor::MoveTo(x + x_off + 1, y + y_off + 2),
+                    cursor::MoveTo(
+                        (x + x_off + 1).try_into().unwrap(),
+                        (y + y_off + 2).try_into().unwrap()
+                    ),
                     style::Print("o")
                 )?;
             }
@@ -175,7 +189,10 @@ fn main() -> io::Result<()> {
             if game_over {
                 queue!(
                     stdout,
-                    cursor::MoveTo(x + x_off + 1, y + y_off + 2),
+                    cursor::MoveTo(
+                        (x + x_off + 1).try_into().unwrap(),
+                        (y + y_off + 2).try_into().unwrap()
+                    ),
                     style::Print("X")
                 )?;
                 game_over_rendered = true;
@@ -202,19 +219,19 @@ enum Direction {
     Right,
 }
 
-type Position = (u16, u16);
+type Position = (i32, i32);
 
 struct GameState {
     snake: Snake,
     input_dir: Direction,
     food_pos: Position,
     score: u64,
-    width: u16,
-    height: u16,
+    width: i32,
+    height: i32,
 }
 
 impl GameState {
-    fn new(width: u16, height: u16) -> Self {
+    fn new(width: i32, height: i32) -> Self {
         let snake = Snake::new((width / 2, height / 2), Direction::Right);
         let food_pos = generate_food_position(width, height, &snake.body).unwrap();
 
@@ -235,16 +252,24 @@ impl GameState {
         self.score = 1;
     }
 
-    fn handle_collision(&mut self, border: &[Position]) -> bool {
-        if self.snake.is_colliding(border, true) {
-            return true;
-        } else if self.snake.is_colliding(&[self.food_pos], false) {
-            self.score += 1;
-            self.snake.body.push(self.snake.new_segment_position);
-            self.food_pos =
-                generate_food_position(self.width, self.height, &self.snake.body).unwrap()
+    fn handle_collision(&mut self) -> bool {
+        if (0..self.width).contains(&self.snake_head().0)
+            && (0..self.height).contains(&self.snake_head().1)
+            && !(self.snake_body().contains(self.snake_head()))
+        {
+            if &self.food_pos == self.snake_head() {
+                self.score += 1;
+                self.snake.body.push(self.snake.new_segment_position);
+                if let Some(pos) = generate_food_position(self.width, self.height, &self.snake.body)
+                {
+                    self.food_pos = pos;
+                } else {
+                    return true;
+                }
+            }
+            return false;
         }
-        false
+        true
     }
 
     fn advance(&mut self) {
@@ -296,10 +321,10 @@ impl Snake {
             self.body[i] = self.body[i - 1]
         }
         match self.direction {
-            Direction::Right => self.body[0].0 = self.body[0].0.saturating_add(1),
-            Direction::Left => self.body[0].0 = self.body[0].0.saturating_sub(1),
-            Direction::Up => self.body[0].1 = self.body[0].1.saturating_sub(1),
-            Direction::Down => self.body[0].1 = self.body[0].1.saturating_add(1),
+            Direction::Right => self.body[0].0 += 1,
+            Direction::Left => self.body[0].0 -= 1,
+            Direction::Up => self.body[0].1 -= 1,
+            Direction::Down => self.body[0].1 += 1,
         };
     }
 
@@ -311,14 +336,5 @@ impl Snake {
             (Direction::Right, Direction::Left) => {}
             _ => self.direction = direction,
         }
-    }
-
-    fn is_colliding(&mut self, collision_positions: &[Position], check_self: bool) -> bool {
-        if collision_positions.contains(&self.body[0])
-            || (check_self && self.body[1..].contains(&self.body[0]))
-        {
-            return true;
-        }
-        false
     }
 }
