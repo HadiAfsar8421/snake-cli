@@ -1,9 +1,0 @@
-(function() {
-    const implementors = Object.fromEntries([["mio",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.96.0/std/io/trait.Write.html\" title=\"trait std::io::Write\">Write</a> for &amp;<a class=\"struct\" href=\"mio/net/struct.TcpStream.html\" title=\"struct mio::net::TcpStream\">TcpStream</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.96.0/std/io/trait.Write.html\" title=\"trait std::io::Write\">Write</a> for &amp;<a class=\"struct\" href=\"mio/net/struct.UnixStream.html\" title=\"struct mio::net::UnixStream\">UnixStream</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.96.0/std/io/trait.Write.html\" title=\"trait std::io::Write\">Write</a> for &amp;<a class=\"struct\" href=\"mio/unix/pipe/struct.Sender.html\" title=\"struct mio::unix::pipe::Sender\">Sender</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.96.0/std/io/trait.Write.html\" title=\"trait std::io::Write\">Write</a> for <a class=\"struct\" href=\"mio/net/struct.TcpStream.html\" title=\"struct mio::net::TcpStream\">TcpStream</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.96.0/std/io/trait.Write.html\" title=\"trait std::io::Write\">Write</a> for <a class=\"struct\" href=\"mio/net/struct.UnixStream.html\" title=\"struct mio::net::UnixStream\">UnixStream</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.96.0/std/io/trait.Write.html\" title=\"trait std::io::Write\">Write</a> for <a class=\"struct\" href=\"mio/unix/pipe/struct.Sender.html\" title=\"struct mio::unix::pipe::Sender\">Sender</a>",0]]]]);
-    if (window.register_implementors) {
-        window.register_implementors(implementors);
-    } else {
-        window.pending_implementors = implementors;
-    }
-})()
-//{"start":59,"fragment_lengths":[1544]}

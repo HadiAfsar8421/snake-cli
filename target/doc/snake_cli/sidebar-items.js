@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["Direction"],"fn":["generate_borders","main"],"struct":["Snake"],"type":["Position"]};
