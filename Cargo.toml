@@ -3,6 +3,14 @@ name = "snake-cli"
 version = "0.1.0"
 edition = "2024"
 
+description = "A simple terminal snake game written in Rust using crossterm"
+readme = "README.md"
+license = "MIT"
+repository = "https://github.com/HadiAfsar8421/snake-cli"
+homepage = "https://github.com/HadiAfsar8421/snake-cli"
+
+keywords = ["snake", "cli", "terminal", "game"]
+categories = ["games", "command-line-utilities"]
 [dependencies]
 rand = "0.9.4"
 crossterm = "0.29.0"
